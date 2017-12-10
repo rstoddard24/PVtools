@@ -1,0 +1,22 @@
+        BB1050 = np.loadtxt('../../data/PLdata/grating_calibration_files/50 500'
+                            'blaze BB files/BB 1050 10 um hole 10x SiCCD 532 LP'
+                            'F No Duoscan Autoscanning_2.txt')
+
+        BB_raw_photon_data = BB1050[:,1]/[BB1050[1,0]-BB1050[0,0] (BB1050[1:-1,0]-BB1050(:-2,0))']' #cts/s-nm
+
+
+        BBPhotonFluxPerNM = @(lambda,T) 2*pi/(h^3*c^2)*((h*c/(lambda*10^-9))^2/(exp((h*c/(lambda*10^-9))/(kb*T))-1))*(h*c/(lambda*10^-9)^2)*10^-9;
+        AbsFluxesPerNM = zeros(size(BB1050,1),1);
+        Ts = 1050;
+        for lambda = 1:size(BB1050,1)  
+            AbsFluxesPerNM(lambda,1) = BBPhotonFluxPerNM(BB1050(lambda,1),Ts+273.15);
+        end
+
+        AbsPhotonRate = pi*(10/2*10^-6)^2*AbsFluxesPerNM; %photons/sec-nm
+        Conversion_factor = AbsPhotonRate./BB_raw_photon_data;
+
+
+
+Ave_conv_factors = zeros(size(BB1050,1),2);
+Ave_conv_factors(:,1) = BB1050(:,1);
+Ave_conv_factors(:,2) = Conversion_factor;
