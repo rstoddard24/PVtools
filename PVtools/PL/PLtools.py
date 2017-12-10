@@ -112,7 +112,7 @@ def plqy_ext(aipl_data,laser_power):
     P532 = DiodeReading/(DiodeResponse532*Area785ImageJ*10) #W/m^2
     Jp532 = DiodeReading*0.925/(DiodeResponse532*Area785ImageJ*1.60218e-19*Ep532*2)
 
-    if data.shape[1] == 2: #single spectrum
+    if aipl_data.shape[1] == 2: #single spectrum
         lam = aipl_data[:,0]
         E = heV*c/(lam*1e-9)
         Ipl = aipl_data[:,1] 
@@ -137,21 +137,21 @@ def plqy_ext(aipl_data,laser_power):
         chi_PLQY_Eg = (VocMax350-kbeV*350*np.log(1/(TotalPL_Eg/Jp532)))/VocMax300
         PLQY_Eg = TotalPL_Eg/Jp532
         dmu_PLQY_Eg = VocMax350-kbeV*350*np.log(1/(TotalPL_Eg/Jp532))
-        mean_Ipl = np.sum(Ipl_raw2*E)/np.sum(Ipl_raw2)
+        mean_Ipl = np.sum(Ipl*E)/np.sum(Ipl)
     else: #maps
         k = 0
         while np.isnan(aipl_data[0,k]):
             k = k + 1
         lam = aipl_data[0,k:]
         E = heV*c/(lam*1e-9)
-        mean_Ipl = np.zeros(aipl_data.shape[0])
-        peak_pos = np.zeros(aipl_data.shape[0])
-        FWHM = np.zeros(aipl_data.shape[0])
-        PLQY = np.zeros(aipl_data.shape[0])
-        dmu_PLQY = np.zeros(aipl_data.shape[0])
-        chi_PLQY = np.zeros(aipl_data.shape[0])
-        dmu_PLQY_Eg = np.zeros(aipl_data.shape[0])
-        chi_PLQY_Eg = np.zeros(aipl_data.shape[0])
+        mean_Ipl = np.zeros(aipl_data.shape[0]-1)
+        peak_pos = np.zeros(aipl_data.shape[0]-1)
+        FWHM = np.zeros(aipl_data.shape[0]-1)
+        PLQY = np.zeros(aipl_data.shape[0]-1)
+        dmu_PLQY = np.zeros(aipl_data.shape[0]-1)
+        chi_PLQY = np.zeros(aipl_data.shape[0]-1)
+        dmu_PLQY_Eg = np.zeros(aipl_data.shape[0]-1)
+        chi_PLQY_Eg = np.zeros(aipl_data.shape[0]-1)
         for ii in range(1,aipl_data.shape[0]):
             Ipl = aipl_data[ii,k:]
             maxI = np.max(Ipl)
@@ -175,5 +175,5 @@ def plqy_ext(aipl_data,laser_power):
             chi_PLQY_Eg[ii-1] = (VocMax350-kbeV*350*np.log(1/(TotalPL_Eg/Jp532)))/VocMax300
             PLQY_Eg = TotalPL_Eg/Jp532
             dmu_PLQY_Eg[ii-1] = VocMax350-kbeV*350*np.log(1/(TotalPL_Eg/Jp532))
-            mean_Ipl[ii-1] = np.sum(Ipl_raw2*E)/np.sum(Ipl_raw2)
+            mean_Ipl[ii-1] = np.sum(Ipl*E)/np.sum(Ipl)
     return (mean_Ipl,peak_pos,FWHM,PLQY,dmu_PLQY,chi_PLQY,dmu_PLQY_Eg,chi_PLQY_Eg)
