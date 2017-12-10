@@ -9,6 +9,7 @@ pi = math.pi
 heV = 4.14e-15 #eV*s
 c = 2.99792e8 #m/s
 kbeV = 8.6173e-5 #eV/K
+keV = 8.6173e-5 #eV/K
 h = 6.626e-34
 kb = 1.38065e-23
 q = 1.60218e-19
@@ -91,6 +92,30 @@ def aipl(data,dark,grating):
             aipl_data[ii,k:] = Ipl
     return aipl_data
     
+def fpf(X,E,Xscale):
+
+    theta = X[0]*Xscale[0]
+    gam = X[2]*Xscale[1]
+    #a0 = X(3)*Xscale(3);
+    a0 = Xscale[2]
+    Eg = X[2]*Xscale[3]
+    #Eg = Xscale(4);
+    QFLS = X[3]*Xscale[4]
+    T = X[4]*Xscale[5]
+    #T = Xscale(6);
+    d = Xscale[6]
+
+    ge = np.zeros(E.shape[0])
+
+    for ii in range(E.shape[0]):
+        ge[ii] = 1/(gam*2*scipy.special.gamma(1+1/theta))*scipy.integrate.quad(lambda u: np.exp(-np.absolute(u/gam)**theta)*np.sqrt((E[ii]-Eg)-u),-math.inf,E[ii]-Eg)[0]
+
+    AIPL = 2*pi*E**2/(heV**3*c**2)*((1-np.exp(-a0*d*ge))/(np.exp((E-QFLS)/(keV*T))-1))*(1-2/(np.exp((E-QFLS)/(2*keV*T))+1))
+
+    AIPL = np.log(AIPL)
+    return AIPL
+
+
 def plqy_ext(aipl_data,laser_power):
     DiodeReadings_1sun = laser_power
     DiodeResponse532= 0.2741
