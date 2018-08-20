@@ -33,12 +33,16 @@ def aipl(data,dark,grating):
     dark - can be 0
 
     grating - specifies which grating used, a string either '500nm' or '1200nm'
+    or '1200nm-InGaAs'
     
     OUTPUTS:
     aipl_data - data converted to absolute units , [=] photons/m^2-s-eV
     """
     
     #Get grating calibration file, then calculate conversion factor
+    def BBPhotonFluxPerNM(lam,T):
+        a = 2*pi/(h**3*c**2)*((h*c/(lam*1e-9))**2/(np.exp((h*c/(lam*1e-9))/(kb*T))-1))*(h*c/(lam*1e-9)**2)*1e-9
+        return a
     if grating == '500nm':
         BB1050 = np.loadtxt('../../data/PLdata/grating_calibration_files/150 500'
                     'blaze BB files/BB 1050 10 um hole 10x SiCCD 532 LP'
@@ -47,9 +51,7 @@ def aipl(data,dark,grating):
         BB_raw_photon_data = BB1050[:,1]/np.insert(BB1050[1:,0]-BB1050[:-1,0], 
                                            0,BB1050[1,0]-BB1050[0,0])
 
-        def BBPhotonFluxPerNM(lam,T):
-            a = 2*pi/(h**3*c**2)*((h*c/(lam*1e-9))**2/(np.exp((h*c/(lam*1e-9))/(kb*T))-1))*(h*c/(lam*1e-9)**2)*1e-9
-            return a
+        
 
         AbsFluxesPerNM = np.zeros(BB1050.shape[0])
         Ts = 1050;
@@ -65,12 +67,62 @@ def aipl(data,dark,grating):
         Ave_conv_factors[:,1] = Conversion_factor
         f2 = interp1d(Ave_conv_factors[:,0], Ave_conv_factors[:,1], kind='cubic')
     elif grating == '1200nm': #need to add 1200nm grating
-        b = 1
+        BB850 = np.loadtxt('../../data/PLdata/grating_calibration_files/BB 850C 10 um hole D0 10x 150 grating CCD 532 nm NoDS.txt')
+        BB950 = np.loadtxt('../../data/PLdata/grating_calibration_files/BB 950C 10 um hole D0 10x 150 grating CCD 532 nm NoDS.txt')
+        BB1050 = np.loadtxt('../../data/PLdata/grating_calibration_files/BB 1050C 10 um hole D0 10x 150 grating CCD 532 nm NoDS.txt')
+
+        BB_raw_photon_data_1 = BB850[:,1]/np.insert(BB1050[1:,0]-BB1050[:-1,0], 
+                                           0,BB1050[1,0]-BB1050[0,0])
+        BB_raw_photon_data_2 = BB950[:,1]/np.insert(BB1050[1:,0]-BB1050[:-1,0], 
+                                           0,BB1050[1,0]-BB1050[0,0])
+        BB_raw_photon_data_3 = BB1050[:,1]/np.insert(BB1050[1:,0]-BB1050[:-1,0], 
+                                           0,BB1050[1,0]-BB1050[0,0])
+        
+        BB_raw_photon_data = np.array([BB_raw_photon_data_1,BB_raw_photon_data_2,BB_raw_photon_data_3])
+        
+        AbsFluxesPerNM = np.zeros(BB_raw_photon_data.shape)
+        for lam in range(len(BB_raw_photon_data_1)):
+            tt = 0
+            for T in (850,950,1050):
+                AbsFluxesPerNM[tt,lam] = BBPhotonFluxPerNM(BB850[lam,0],T+273.15)
+                tt += 1
+        
+        AbsPhotonRate = pi*(10/2*1e-6)**2*AbsFluxesPerNM #photons/sec-nm
+        Conversion_factor = AbsPhotonRate/BB_raw_photon_data
+        
+        Ave_conv_factors = np.zeros([BB850.shape[0],2])
+        Ave_conv_factors[:,0] = BB850[:,0]
+        Ave_conv_factors[:,1] = np.mean(Conversion_factor,0)
+        f2 = interp1d(Ave_conv_factors[:,0], Ave_conv_factors[:,1], kind='cubic')
+    elif grating == '1200nm-InGaAs': #need to add 1200nm grating
+        BB850 = np.loadtxt('../../data/PLdata/grating_calibration_files/Response_Synapse CCD2_784_150_Objective_x10_UV_0_Detector_Second_InjRej_Edge 785nm PL.txt')
+
+        BB_raw_photon_data = BB850[:,1]/np.insert(BB850[1:,0]-BB850[:-1,0], 
+                                           0,BB850[1,0]-BB850[0,0])
+
+        
+
+        AbsFluxesPerNM = np.zeros(BB850.shape[0])
+        Ts = 850;
+
+        for ii in range(BB850.shape[0]):
+            AbsFluxesPerNM[ii] = BBPhotonFluxPerNM(BB850[ii,0],Ts+273.15)
+
+        AbsPhotonRate = pi*(10/2*1e-6)**2*AbsFluxesPerNM #photons/sec-nm
+        Conversion_factor = AbsPhotonRate/BB_raw_photon_data
+
+        Ave_conv_factors = np.zeros([BB850.shape[0],2])
+        Ave_conv_factors[:,0] = BB850[:,0]
+        Ave_conv_factors[:,1] = Conversion_factor
+        f2 = interp1d(Ave_conv_factors[:,0], Ave_conv_factors[:,1], kind='cubic')
     if data.shape[1] == 2: #single spectrum
         aipl_data = data    
         lam = data[:,0]
         Ipl_raw = data[:,1] #cts/sec
-        Ipl_raw = Ipl_raw - dark[:,1]
+        if dark == []:
+            Ipl_raw2 = Ipl_raw
+        else:
+            Ipl_raw = Ipl_raw - dark[:,1]
         Ipl_raw2 = Ipl_raw/np.insert(lam[1:]-lam[:-1],0,lam[1]-lam[0]) #cts/sec-nm    
         Ipl_nm = Ipl_raw2*f2(lam) #photons/sec-nm
         bandwidth_conv = np.insert(lam[1:]-lam[:-1],0,lam[1]-lam[0])/(heV*c/(lam*1e-9)**2*np.insert(lam[1:]-lam[:-1],0,lam[1]-lam[0])*1e-9)
@@ -84,7 +136,10 @@ def aipl(data,dark,grating):
         lam = data[0,k:]
         for ii in range(1,data.shape[0]):
             Ipl_raw = data[ii,k:]
-            Ipl_raw = Ipl_raw - dark[:,1]
+            if dark == []:
+                Ipl_raw2 = Ipl_raw
+            else:
+                Ipl_raw = Ipl_raw - dark[:,1]
             Ipl_raw2 = Ipl_raw/np.insert(lam[1:]-lam[:-1],0,lam[1]-lam[0]) #cts/sec-nm    
             Ipl_nm = Ipl_raw2*f2(lam) #photons/sec-nm
             bandwidth_conv = np.insert(lam[1:]-lam[:-1],0,lam[1]-lam[0])/(heV*c/(lam*1e-9)**2*np.insert(lam[1:]-lam[:-1],0,lam[1]-lam[0])*1e-9)
