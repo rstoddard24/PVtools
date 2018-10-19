@@ -1,8 +1,6 @@
 import numpy as np
-import pandas as pd
 import math
 from scipy.interpolate import interp1d
-import matplotlib.pyplot as plt
 
 #Constants
 pi = math.pi
@@ -66,7 +64,7 @@ def aipl(data,dark,grating):
         Ave_conv_factors[:,0] = BB1050[:,0]
         Ave_conv_factors[:,1] = Conversion_factor
         f2 = interp1d(Ave_conv_factors[:,0], Ave_conv_factors[:,1], kind='cubic')
-    elif grating == '1200nm': #need to add 1200nm grating
+    elif grating == '1200nm': 
         BB850 = np.loadtxt('../../data/PLdata/grating_calibration_files/BB 850C 10 um hole D0 10x 150 grating CCD 532 nm NoDS.txt')
         BB950 = np.loadtxt('../../data/PLdata/grating_calibration_files/BB 950C 10 um hole D0 10x 150 grating CCD 532 nm NoDS.txt')
         BB1050 = np.loadtxt('../../data/PLdata/grating_calibration_files/BB 1050C 10 um hole D0 10x 150 grating CCD 532 nm NoDS.txt')
@@ -94,7 +92,7 @@ def aipl(data,dark,grating):
         Ave_conv_factors[:,0] = BB850[:,0]
         Ave_conv_factors[:,1] = np.mean(Conversion_factor,0)
         f2 = interp1d(Ave_conv_factors[:,0], Ave_conv_factors[:,1], kind='cubic')
-    elif grating == '1200nm-InGaAs': #need to add 1200nm grating
+    elif grating == '1200nm-InGaAs': 
         BB850 = np.loadtxt('../../data/PLdata/grating_calibration_files/Response_Synapse CCD2_784_150_Objective_x10_UV_0_Detector_Second_InjRej_Edge 785nm PL.txt')
 
         BB_raw_photon_data = BB850[:,1]/np.insert(BB850[1:,0]-BB850[:-1,0], 
@@ -257,3 +255,20 @@ def plqy_ext(aipl_data,laser_power):
             dmu_PLQY_Eg[ii-1] = VocMax350-kbeV*350*np.log(1/(TotalPL_Eg/Jp532))
             mean_Ipl[ii-1] = np.sum(Ipl*E)/np.sum(Ipl)
     return (mean_Ipl,peak_pos,FWHM,PLQY,dmu_PLQY,chi_PLQY,dmu_PLQY_Eg,chi_PLQY_Eg)
+
+def med_idx(aipl_data):
+    '''
+    This function finds the index the AIPL spectrum with median PLQY
+    '''
+    k = 0
+    while np.isnan(aipl_data[0,k]):
+        k = k + 1
+    lam = aipl_data[0,k:]
+    E = heV*c/(lam*1e-9)
+    TotalPL = np.zeros(aipl_data.shape[0]-1)
+    for ii in range(1,aipl_data.shape[0]):
+        Ipl = aipl_data[ii,k:]
+        TotalPL[ii-1] = np.mean(-E[1:-1]+E[0:-2])/2*(Ipl[0]+Ipl[-1]+2*np.sum(Ipl[1:-2]))
+    idx = np.argsort(TotalPL)[len(TotalPL)//2]
+    return (idx+1)
+    
