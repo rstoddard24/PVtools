@@ -51,98 +51,105 @@ app.css.append_css({
 
 
 app.layout = html.Div(children=[
-    html.H1(children='PL model of 2-Phase Nanostructure'),
+    html.H1(children='Photoluminescence of 2-phase nanostructure'),
 
     html.Div(children=[
         html.Div(children=[
             html.Div(children=[
                 html.P("Eg1 [eV]")
-            ], className='row'),
+            ], className='col'),
+             html.Div(children=[
+            dcc.Input(
+                id='Eg1',
+                placeholder='Eg1',
+                type='float',
+                value='1.7'
+            ),
+            ], className='col'),
+        ], className='row'),
+        html.Div(children=[
             html.Div(children=[
                 html.P("Eg2 [eV]")
-            ], className='row'),
+            ], className='col'),
+             html.Div(children=[
+            dcc.Input(
+                id='Eg2',
+                placeholder='Eg2',
+                type='float',
+                value='1.8'
+            ),
+            ], className='col'),
+        ], className='row'),
+        html.Div(children=[
             html.Div(children=[
                 html.P("x1")
-            ], className='row'),
+            ], className='col'),
+             html.Div(children=[
+            dcc.Input(
+                id='x1',
+                placeholder='x1',
+                type='float',
+                value='.03'
+            ),
+            ], className='col'),
+        ], className='row'),
+        html.Div(children=[
             html.Div(children=[
                 html.P("theta")
-            ], className='row'),
+            ], className='col'),
+             html.Div(children=[
+            dcc.Input(
+                id='theta',
+                placeholder='theta',
+                type='float',
+                value='1.5'
+            ),
+            ], className='col'),
+        ], className='row'),
+        html.Div(children=[
             html.Div(children=[
                 html.P("gamma [meV]")
-            ], className='row'),
+            ], className='col'),
+             html.Div(children=[
+            dcc.Input(
+                id='gamma',
+                placeholder='gamma',
+                type='float',
+                value='37'
+            ),
+            ], className='col'),
+        ], className='row'),
+        html.Div(children=[
             html.Div(children=[
                 html.P("QFLS [eV]")
-            ], className='row'),
+            ], className='col'),
+             html.Div(children=[
+            dcc.Input(
+                id='QFLS',
+                placeholder='QFLS',
+                type='float',
+                value='1.32'
+            ),
+            ], className='col'),
+        ], className='row'),
+        html.Div(children=[
             html.Div(children=[
                 html.P("T [K]")
-            ], className='row')
-        ], className='col'),
-    
-        html.Div(children=[
-            html.Div(children=[
-                dcc.Input(
-                    id='Eg1',
-                    placeholder='Eg1',
-                    type='float',
-                    value='1.7'
-                ),
-            ], className='row'),
-            html.Div(children=[
-                dcc.Input(
-                    id='Eg2',
-                    placeholder='Eg2',
-                    type='float',
-                    value='1.8'
-                ),
-            ], className='row'),
-            html.Div(children=[
-                dcc.Input(
-                    id='x1',
-                    placeholder='x1',
-                    type='float',
-                    value='.03'
-                ),
-            ], className='row'),
-            html.Div(children=[
-                dcc.Input(
-                    id='theta',
-                    placeholder='theta',
-                    type='float',
-                    value='1.5'
-                ),
-            ], className='row'),
-            html.Div(children=[
-                dcc.Input(
-                    id='gamma',
-                    placeholder='gamma',
-                    type='float',
-                    value='37'
-                ),
-            ], className='row'),
-            html.Div(children=[
-                dcc.Input(
-                    id='QFLS',
-                    placeholder='QFLS',
-                    type='float',
-                    value='1.3'
-                ),
-            ], className='row'),
-            html.Div(children=[
-                dcc.Input(
-                    id='T',
-                    placeholder='T',
-                    type='float',
-                    value='300'
-                ),
-            ], className='row')
-        ], className='col')
-    ], className='row'),
-
-    html.Div(children=[
+            ], className='col'),
+             html.Div(children=[
+            dcc.Input(
+                id='T',
+                placeholder='T',
+                type='float',
+                value='300'
+            ),
+            ], className='col'),
+        ], className='row'),               
         html.Div(children=[
             html.Button('Submit', id="final-submit-button", className="btn btn-primary btn-lg"),
-        ], className='row', style={'text-align': 'center'})
+        ], className='row', style={'text-align': 'center'}),
     ], className='col'),
+
 
     html.Div(children=[
         html.Div(children=[
@@ -150,9 +157,9 @@ app.layout = html.Div(children=[
         ], className='col', style={'text-align': 'center'}),
         html.Div(children=[
             dcc.Graph(id='graph-log')
-        ], className='row', style={'text-align': 'center'}),
-    ], className='col'),
-], className='container', style={'margin-top': 25})
+        ], className='col', style={'text-align': 'center'}),
+    ], className='row')
+    ])
 
 @app.callback(
     Output('graph-linear', 'figure'),
@@ -181,7 +188,7 @@ def update_graph_linear(_, Eg1, Eg2, x1, theta, gamma, QFLS, T):
         'layout': go.Layout(
             xaxis={'title': 'E [eV]'},
             yaxis={'title': 'AIPL [photons/m^2-eV-s]'},
-            height=650,
+            height=400,
             width=500
         )
     }
@@ -215,7 +222,7 @@ def update_graph_log(_, Eg1, Eg2, x1, theta, gamma, QFLS, T):
         'layout': go.Layout(
             xaxis={'title': 'E [eV]'},
             yaxis={'title': 'AIPL [photons/m^2-eV-s]','type': 'log'},
-            height=650,
+            height=400,
             width=500
         )
     }
