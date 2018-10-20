@@ -1,6 +1,9 @@
 import numpy as np
 import math
+import scipy
+from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
+from scipy.integrate import quad
 
 #Constants
 pi = math.pi
@@ -145,29 +148,6 @@ def aipl(data,dark,grating):
             aipl_data[ii,k:] = Ipl
     return aipl_data
     
-def fpf(X,E,Xscale):
-
-    theta = X[0]*Xscale[0]
-    gam = X[2]*Xscale[1]
-    #a0 = X(3)*Xscale(3);
-    a0 = Xscale[2]
-    Eg = X[2]*Xscale[3]
-    #Eg = Xscale(4);
-    QFLS = X[3]*Xscale[4]
-    T = X[4]*Xscale[5]
-    #T = Xscale(6);
-    d = Xscale[6]
-
-    ge = np.zeros(E.shape[0])
-
-    for ii in range(E.shape[0]):
-        ge[ii] = 1/(gam*2*scipy.special.gamma(1+1/theta))*scipy.integrate.quad(lambda u: np.exp(-np.absolute(u/gam)**theta)*np.sqrt((E[ii]-Eg)-u),-math.inf,E[ii]-Eg)[0]
-
-    AIPL = 2*pi*E**2/(heV**3*c**2)*((1-np.exp(-a0*d*ge))/(np.exp((E-QFLS)/(keV*T))-1))*(1-2/(np.exp((E-QFLS)/(2*keV*T))+1))
-
-    AIPL = np.log(AIPL)
-    return AIPL
-
 
 def plqy_ext(aipl_data,laser_power):
     DiodeReadings_1sun = laser_power
@@ -239,21 +219,27 @@ def plqy_ext(aipl_data,laser_power):
             LHMax_idx = np.argmin(np.absolute(maxI/2-Ipl[maxI_idx:]))
             LHMax_idx = LHMax_idx+maxI_idx-1
             FWHM[ii-1] = E[HHMax_idx]-E[LHMax_idx]
-            VocSQ300 = VocSQs300_fn(E[maxI_idx])
-            VocSQ350 = VocSQs350_fn(E[maxI_idx])    
-            JphSQ = Jphs_fn(E[maxI_idx])
-            NSuns = Jp532*q/JphSQ;
-            VocMax300 = VocSQ300 + kb*300/q*np.log(Jp532*q/JphSQ)
-            VocMax350 = VocSQ350 + kb*350/q*np.log(Jp532*q/JphSQ)
-            TotalPL = np.mean(-E[1:-1]+E[0:-2])/2*(Ipl[0]+Ipl[-1]+2*np.sum(Ipl[1:-2]))
-            TotalPL_Eg = np.mean(-E[1:maxI_idx]+E[0:maxI_idx-1])/2*(Ipl[0]+Ipl[maxI_idx]+2*np.sum(Ipl[1:maxI_idx-1]))
-            PLQY[ii-1] = TotalPL/Jp532
-            dmu_PLQY[ii-1] = VocMax350-kbeV*350*np.log(1/PLQY[ii-1])
-            chi_PLQY[ii-1] = dmu_PLQY[ii-1]/VocMax300 
-            chi_PLQY_Eg[ii-1] = (VocMax350-kbeV*350*np.log(1/(TotalPL_Eg/Jp532)))/VocMax300
-            PLQY_Eg = TotalPL_Eg/Jp532
-            dmu_PLQY_Eg[ii-1] = VocMax350-kbeV*350*np.log(1/(TotalPL_Eg/Jp532))
-            mean_Ipl[ii-1] = np.sum(Ipl*E)/np.sum(Ipl)
+            try:
+                VocSQ300 = VocSQs300_fn(E[maxI_idx])
+                VocSQ350 = VocSQs350_fn(E[maxI_idx])    
+                JphSQ = Jphs_fn(E[maxI_idx])
+                NSuns = Jp532*q/JphSQ;
+                VocMax300 = VocSQ300 + kb*300/q*np.log(Jp532*q/JphSQ)
+                VocMax350 = VocSQ350 + kb*350/q*np.log(Jp532*q/JphSQ)
+                TotalPL = np.mean(-E[1:-1]+E[0:-2])/2*(Ipl[0]+Ipl[-1]+2*np.sum(Ipl[1:-2]))
+                TotalPL_Eg = np.mean(-E[1:maxI_idx]+E[0:maxI_idx-1])/2*(Ipl[0]+Ipl[maxI_idx]+2*np.sum(Ipl[1:maxI_idx-1]))
+                PLQY[ii-1] = TotalPL/Jp532
+                dmu_PLQY[ii-1] = VocMax350-kbeV*350*np.log(1/PLQY[ii-1])
+                chi_PLQY[ii-1] = dmu_PLQY[ii-1]/VocMax300 
+                chi_PLQY_Eg[ii-1] = (VocMax350-kbeV*350*np.log(1/(TotalPL_Eg/Jp532)))/VocMax300
+                PLQY_Eg = TotalPL_Eg/Jp532
+                dmu_PLQY_Eg[ii-1] = VocMax350-kbeV*350*np.log(1/(TotalPL_Eg/Jp532))
+                mean_Ipl[ii-1] = np.sum(Ipl*E)/np.sum(Ipl)
+            except ValueError:
+                VocSQ300 = 0
+                VocSQ350 = 0
+                JphSQ = 0
+                NSuns = 1     
     return (mean_Ipl,peak_pos,FWHM,PLQY,dmu_PLQY,chi_PLQY,dmu_PLQY_Eg,chi_PLQY_Eg)
 
 def med_idx(aipl_data):
@@ -271,4 +257,90 @@ def med_idx(aipl_data):
         TotalPL[ii-1] = np.mean(-E[1:-1]+E[0:-2])/2*(Ipl[0]+Ipl[-1]+2*np.sum(Ipl[1:-2]))
     idx = np.argsort(TotalPL)[len(TotalPL)//2]
     return (idx+1)
+
+def LSWK(E,theta,gam,Eg,QFLS,T):
+    '''
+    The Lasher-Stern-Wuerfel-Katahara equation
+    '''
+
+    '''
+    theta = X[0]
+    gam = X[1]
+    #a0 = X(3)*Xscale(3);
+    a0 = X[2]
+    Eg = X[3]
+    #Eg = Xscale(4);
+    QFLS = X[4]
+    T = X[5]
+    #T = Xscale(6);
+    d = 375/(1e7)
+    '''
+    a0 = 1e5
+    d = 375/(1e7)
+    ge = np.zeros(E.shape[0])
+
+    for ii in range(E.shape[0]):
+        ge[ii] = 1/(gam*2*scipy.special.gamma(1+1/theta))*quad(lambda u: np.exp(-np.absolute(u/gam)**theta)*np.sqrt((E[ii]-Eg)-u),-math.inf,E[ii]-Eg)[0]
+
+    AIPL = 2*pi*E**2/(heV**3*c**2)*((1-np.exp(-a0*d*ge))/(np.exp((E-QFLS)/(keV*T))-1))*(1-2/(np.exp((E-QFLS)/(2*keV*T))+1))
+
+    AIPL = np.log(AIPL)
+    return AIPL
+
+
+
+def LSWK_gfunc(E,theta,gam,Eg,QFLS,T):
+    '''
+    The Lasher-Stern-Wuerfel-Katahara equation
+    '''
+
+    '''
+    theta = X[0]
+    gam = X[1]
+    #a0 = X(3)*Xscale(3);
+    a0 = X[2]
+    Eg = X[3]
+    #Eg = Xscale(4);
+    QFLS = X[4]
+    T = X[5]
+    #T = Xscale(6);
+    d = 375/(1e7)
+    '''
+    a0 = 1e5
+    d = 375/(1e7)
+    ge = np.zeros(E.shape[0])
+
+    for ii in range(E.shape[0]):
+        ge[ii] = 1/(gam*2*scipy.special.gamma(1+1/theta))*quad(lambda u: np.exp(-np.absolute(u/gam)**theta)*np.sqrt((E[ii]-Eg)-u),-math.inf,E[ii]-Eg)[0]
+
+    AIPL = 2*pi*E**2/(heV**3*c**2)*((1-np.exp(-a0*d*ge))/(np.exp((E-QFLS)/(keV*T))-1))*(1-2/(np.exp((E-QFLS)/(2*keV*T))+1))
+
+    AIPL = np.log(AIPL)
+    return AIPL
+
+
+def full_peak_fit(E,Ipl):
+    thresh = 5e18
+    maxI_idx = np.argmax(Ipl)
+    lb_idx = np.argmin(np.absolute(Ipl[:maxI_idx]-thresh))
+    rb_idx = np.argmin(np.absolute(Ipl[maxI_idx:]-thresh))+maxI_idx
     
+    #ll_idx = np.argmin(np.absolute(E-1.7))
+    
+    X = np.ones(5);
+    d = 375/(1e7) #cm
+    Xscale = [1.5,.037,1e5,1.75,1.4,288,d]
+    X[0] = Xscale[0]
+    X[1] = Xscale[1]
+    #X[2] = Xscale[2]
+    X[2] = Xscale[3]
+    X[3] = Xscale[4]
+    X[4] = Xscale[5]
+    
+    
+    (Xf, pcov) = curve_fit(LSWK, E[lb_idx:rb_idx], np.log(Ipl[lb_idx:rb_idx]),p0=X)
+   
+
+    #aipl_mod = fpf(E,Xf[0],Xf[1],Xf[2],Xf[3],Xf[4])
+    aipl_mod = np.exp(LSWK(E[lb_idx:rb_idx],Xf[0],Xf[1],Xf[2],Xf[3],Xf[4]))
+    return (E[lb_idx:rb_idx], aipl_mod)
