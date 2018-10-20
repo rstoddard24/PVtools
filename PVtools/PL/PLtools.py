@@ -299,6 +299,8 @@ g_interp_func = CloughTocher2DInterpolator(np.transpose(np.array([g_func_table[:
 def LSWK_gfunc(E,theta,gam,Eg,QFLS,T):
     '''
     The Lasher-Stern-Wuerfel-Katahara equation
+    This uses a Table lookup to calculate G (rather than taking integral)
+    which saves time during peak fit
     '''
 
     '''
@@ -318,20 +320,55 @@ def LSWK_gfunc(E,theta,gam,Eg,QFLS,T):
     
     
     ge = np.sqrt(np.absolute(gam))*g_interp_func(theta, (E-Eg)/gam)
-    '''
-    ge = np.zeros(E.shape[0])
-
-    for ii in range(E.shape[0]):
-        ge[ii] = np.sqrt(np.absolute(gam))*g_interp_func(theta, (E[ii]-Eg)/gam)
     
-'''
     AIPL = 2*pi*E**2/(heV**3*c**2)*((1-np.exp(-a0*d*ge))/(np.exp((E-QFLS)/(keV*T))-1))*(1-2/(np.exp((E-QFLS)/(2*keV*T))+1))
 
     AIPL = np.log(AIPL)
     return AIPL
 
+def LSWK_2phase_gfunc(E,theta,gam,Eg1,Eg2,x1,QFLS,T):
+    '''
+    The Lasher-Stern-Wuerfel-Katahara equation
+    This uses a Table lookup to calculate G (rather than taking integral)
+    which saves time during peak fit
+    '''
 
-def full_peak_fit(E,Ipl):
+    '''
+    theta = X[0]
+    gam = X[1]
+    #a0 = X(3)*Xscale(3);
+    a0 = X[2]
+    Eg = X[3]
+    #Eg = Xscale(4);
+    QFLS = X[4]
+    T = X[5]
+    #T = Xscale(6);
+    d = 375/(1e7)
+    '''
+    a0 = 1e5
+    d = 375/(1e7)
+    
+    
+    ge1 = np.sqrt(np.absolute(gam))*g_interp_func(theta, (E-Eg1)/gam)
+    ge2 = np.sqrt(np.absolute(gam))*g_interp_func(theta, (E-Eg2)/gam)
+    
+    ge = x1*ge1 + (1-x1)*ge2
+    
+    AIPL = 2*pi*E**2/(heV**3*c**2)*((1-np.exp(-a0*d*ge))/(np.exp((E-QFLS)/(keV*T))-1))*(1-2/(np.exp((E-QFLS)/(2*keV*T))+1))
+
+    AIPL = np.log(AIPL)
+    return AIPL
+
+def full_peak_fit(E,Ipl,X0):
+    '''
+    This is work in progress. Want to add variable number of arguments, and
+    add the following functionality
+    1. Ability to set thresh to determine fit ranges
+    2. Ability to override thresh determined fit ranges 
+    3. Ability to specify which params to fit and keep constant
+    4. Ability to pass unfit params to function (e.g. a0*d)
+    '''
+    
     thresh = 5e18
     maxI_idx = np.argmax(Ipl)
     lb_idx = np.argmin(np.absolute(Ipl[:maxI_idx]-thresh))
@@ -340,8 +377,7 @@ def full_peak_fit(E,Ipl):
     #ll_idx = np.argmin(np.absolute(E-1.7))
     
     X = np.ones(5);
-    d = 375/(1e7) #cm
-    Xscale = [1.5,.037,1e5,1.75,1.4,288,d]
+    Xscale = X0
     X[0] = Xscale[0]
     X[1] = Xscale[1]
     #X[2] = Xscale[2]
