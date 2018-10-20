@@ -1,9 +1,10 @@
+#%%
 import numpy as np
 import math
 import scipy
 from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
-from scipy.interpolate import interp2d
+from scipy.interpolate import CloughTocher2DInterpolator
 from scipy.integrate import quad
 
 #Constants
@@ -17,7 +18,7 @@ kb = 1.38065e-23
 q = 1.60218e-19
 
 
-
+#%%
 #This module contains functions for Photoluminescence data analysis and modeling
 
 def aipl(data,dark,grating):
@@ -288,10 +289,13 @@ def LSWK(E,theta,gam,Eg,QFLS,T):
     AIPL = np.log(AIPL)
     return AIPL
 
-"""
+
 #Load GFuncTable and make interpolation function to speed up full peak fit
+#%%
 g_func_table = np.loadtxt('../../data/PLdata/GFuncTables/GFuncTable.csv',delimiter=',')
-g_interp_func = interp2d(g_func_table[:,0],g_func_table[:,1],g_func_table[:,2])
+a = np.array([g_func_table[:,0],g_func_table[:,1]])
+g_interp_func = CloughTocher2DInterpolator(np.transpose(np.array([g_func_table[:,0],g_func_table[:,1]])),g_func_table[:,2])
+#%%
 def LSWK_gfunc(E,theta,gam,Eg,QFLS,T):
     '''
     The Lasher-Stern-Wuerfel-Katahara equation
@@ -313,17 +317,20 @@ def LSWK_gfunc(E,theta,gam,Eg,QFLS,T):
     d = 375/(1e7)
     
     
+    ge = np.sqrt(np.absolute(gam))*g_interp_func(theta, (E-Eg)/gam)
+    '''
     ge = np.zeros(E.shape[0])
 
     for ii in range(E.shape[0]):
-        ge[ii] = g_interp_func(theta, (E[ii]-Eg)/gam)
+        ge[ii] = np.sqrt(np.absolute(gam))*g_interp_func(theta, (E[ii]-Eg)/gam)
     
+'''
     AIPL = 2*pi*E**2/(heV**3*c**2)*((1-np.exp(-a0*d*ge))/(np.exp((E-QFLS)/(keV*T))-1))*(1-2/(np.exp((E-QFLS)/(2*keV*T))+1))
 
     AIPL = np.log(AIPL)
     return AIPL
 
-"""
+
 def full_peak_fit(E,Ipl):
     thresh = 5e18
     maxI_idx = np.argmax(Ipl)
@@ -343,7 +350,7 @@ def full_peak_fit(E,Ipl):
     X[4] = Xscale[5]
     
     
-    (Xf, pcov) = curve_fit(LSWK, E[lb_idx:rb_idx], np.log(Ipl[lb_idx:rb_idx]),p0=X)
+    (Xf, pcov) = curve_fit(LSWK_gfunc, E[lb_idx:rb_idx], np.log(Ipl[lb_idx:rb_idx]),p0=X)
    
 
     #aipl_mod = fpf(E,Xf[0],Xf[1],Xf[2],Xf[3],Xf[4])

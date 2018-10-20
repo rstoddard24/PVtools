@@ -157,8 +157,8 @@ plt.xticks([1, 2, 3, 4], ['FAGACs', '+PEAI', '+TOPO', '+Both'])
 '''
 #%%
 #Use Case 3: Study Full Peak Fit for a single spectrum
-#Lets do + Both and choose the peak with median PLQY
-ii = 2 #+Both filename index
+#Lets do + PEAI and choose the peak with median PLQY
+ii = 2 #+PEAI filename index
 
 #Load data, using pd. Can also use np.loadtxt, but less flexible
 df = pd.read_table(directory + '/' + dname,header=None)
@@ -186,8 +186,9 @@ Ipl = aipl_data[idx,k:]
 (Emod, aipl_mod, theta, gam, Eg, QFLS, T) = PLtools.full_peak_fit(E,Ipl)
 
 #%%
-#plt.semilogy(E,Ipl,'.',Emod,aipl_mod)
-aipl_mod1 = PLtools.LSWK(Emod,theta, gam, Eg, QFLS, T)
-aipl_mod2 = PLtools.LSWK_gfunc(Emod,theta, gam, Eg, QFLS, T)
-plt.semilogy(Emod,aipl_mod1,Emod,aipl_mod2)
+plt.semilogy(E,Ipl,'.',Emod,aipl_mod)
+#aipl_mod1 = np.exp(PLtools.LSWK(Emod,theta, gam, Eg, QFLS, T))
+#aipl_mod2 = np.exp(PLtools.LSWK_gfunc(Emod,theta, gam, Eg, QFLS, T))
+#plt.semilogy(Emod,aipl_mod2)
+#plt.semilogy(Emod,aipl_mod2)
 
