@@ -3,6 +3,7 @@ import math
 import scipy
 from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
+from scipy.interpolate import interp2d
 from scipy.integrate import quad
 
 #Constants
@@ -287,8 +288,10 @@ def LSWK(E,theta,gam,Eg,QFLS,T):
     AIPL = np.log(AIPL)
     return AIPL
 
-
-
+"""
+#Load GFuncTable and make interpolation function to speed up full peak fit
+g_func_table = np.loadtxt('../../data/PLdata/GFuncTables/GFuncTable.csv',delimiter=',')
+g_interp_func = interp2d(g_func_table[:,0],g_func_table[:,1],g_func_table[:,2])
 def LSWK_gfunc(E,theta,gam,Eg,QFLS,T):
     '''
     The Lasher-Stern-Wuerfel-Katahara equation
@@ -308,17 +311,19 @@ def LSWK_gfunc(E,theta,gam,Eg,QFLS,T):
     '''
     a0 = 1e5
     d = 375/(1e7)
+    
+    
     ge = np.zeros(E.shape[0])
 
     for ii in range(E.shape[0]):
-        ge[ii] = 1/(gam*2*scipy.special.gamma(1+1/theta))*quad(lambda u: np.exp(-np.absolute(u/gam)**theta)*np.sqrt((E[ii]-Eg)-u),-math.inf,E[ii]-Eg)[0]
-
+        ge[ii] = g_interp_func(theta, (E[ii]-Eg)/gam)
+    
     AIPL = 2*pi*E**2/(heV**3*c**2)*((1-np.exp(-a0*d*ge))/(np.exp((E-QFLS)/(keV*T))-1))*(1-2/(np.exp((E-QFLS)/(2*keV*T))+1))
 
     AIPL = np.log(AIPL)
     return AIPL
 
-
+"""
 def full_peak_fit(E,Ipl):
     thresh = 5e18
     maxI_idx = np.argmax(Ipl)
@@ -343,4 +348,4 @@ def full_peak_fit(E,Ipl):
 
     #aipl_mod = fpf(E,Xf[0],Xf[1],Xf[2],Xf[3],Xf[4])
     aipl_mod = np.exp(LSWK(E[lb_idx:rb_idx],Xf[0],Xf[1],Xf[2],Xf[3],Xf[4]))
-    return (E[lb_idx:rb_idx], aipl_mod)
+    return (E[lb_idx:rb_idx], aipl_mod,Xf[0],Xf[1],Xf[2],Xf[3],Xf[4])

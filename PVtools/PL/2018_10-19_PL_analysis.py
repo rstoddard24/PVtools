@@ -183,7 +183,11 @@ E = heV*c/(lam*1e-9)
 Ipl = aipl_data[idx,k:]
 
 #Use full_peak_fit to make a full peak fit
-(Emod, aipl_mod) = PLtools.full_peak_fit(E,Ipl)
+(Emod, aipl_mod, theta, gam, Eg, QFLS, T) = PLtools.full_peak_fit(E,Ipl)
 
 #%%
-plt.semilogy(E,Ipl,'.',Emod,aipl_mod)
+#plt.semilogy(E,Ipl,'.',Emod,aipl_mod)
+aipl_mod1 = PLtools.LSWK(Emod,theta, gam, Eg, QFLS, T)
+aipl_mod2 = PLtools.LSWK_gfunc(Emod,theta, gam, Eg, QFLS, T)
+plt.semilogy(Emod,aipl_mod1,Emod,aipl_mod2)
+
