@@ -7,19 +7,19 @@ from scipy.interpolate import interp1d
 from scipy.interpolate import CloughTocher2DInterpolator
 from scipy.integrate import quad
 
-#Constants
+# Constants
 pi = math.pi
-heV = 4.14e-15 #eV*s
-c = 2.99792e8 #m/s
-kbeV = 8.6173e-5 #eV/K
-keV = 8.6173e-5 #eV/K
+heV = 4.14e-15 # eV*s
+c = 2.99792e8 # m/s
+kbeV = 8.6173e-5 # eV/K
+keV = 8.6173e-5 # eV/K
 h = 6.626e-34
 kb = 1.38065e-23
 q = 1.60218e-19
 
 
 #%%
-#This module contains functions for Photoluminescence data analysis and modeling
+# This module contains functions for Photoluminescence data analysis and modeling
 
 def aipl(data,dark,grating):
     """
