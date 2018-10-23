@@ -1,22 +1,25 @@
+#%%
 import numpy as np
-import pandas as pd
 import math
+import scipy
+from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
-import matplotlib.pyplot as plt
+from scipy.interpolate import CloughTocher2DInterpolator
+from scipy.integrate import quad
 
-#Constants
+# Constants
 pi = math.pi
-heV = 4.14e-15 #eV*s
-c = 2.99792e8 #m/s
-kbeV = 8.6173e-5 #eV/K
-keV = 8.6173e-5 #eV/K
+heV = 4.14e-15 # eV*s
+c = 2.99792e8 # m/s
+kbeV = 8.6173e-5 # eV/K
+keV = 8.6173e-5 # eV/K
 h = 6.626e-34
 kb = 1.38065e-23
 q = 1.60218e-19
 
 
-
-#This module contains functions for Photoluminescence data analysis and modeling
+#%%
+# This module contains functions for Photoluminescence data analysis and modeling
 
 def aipl(data,dark,grating):
     """
@@ -66,7 +69,7 @@ def aipl(data,dark,grating):
         Ave_conv_factors[:,0] = BB1050[:,0]
         Ave_conv_factors[:,1] = Conversion_factor
         f2 = interp1d(Ave_conv_factors[:,0], Ave_conv_factors[:,1], kind='cubic')
-    elif grating == '1200nm': #need to add 1200nm grating
+    elif grating == '1200nm': 
         BB850 = np.loadtxt('../../data/PLdata/grating_calibration_files/BB 850C 10 um hole D0 10x 150 grating CCD 532 nm NoDS.txt')
         BB950 = np.loadtxt('../../data/PLdata/grating_calibration_files/BB 950C 10 um hole D0 10x 150 grating CCD 532 nm NoDS.txt')
         BB1050 = np.loadtxt('../../data/PLdata/grating_calibration_files/BB 1050C 10 um hole D0 10x 150 grating CCD 532 nm NoDS.txt')
@@ -94,7 +97,7 @@ def aipl(data,dark,grating):
         Ave_conv_factors[:,0] = BB850[:,0]
         Ave_conv_factors[:,1] = np.mean(Conversion_factor,0)
         f2 = interp1d(Ave_conv_factors[:,0], Ave_conv_factors[:,1], kind='cubic')
-    elif grating == '1200nm-InGaAs': #need to add 1200nm grating
+    elif grating == '1200nm-InGaAs': 
         BB850 = np.loadtxt('../../data/PLdata/grating_calibration_files/Response_Synapse CCD2_784_150_Objective_x10_UV_0_Detector_Second_InjRej_Edge 785nm PL.txt')
 
         BB_raw_photon_data = BB850[:,1]/np.insert(BB850[1:,0]-BB850[:-1,0], 
@@ -147,29 +150,6 @@ def aipl(data,dark,grating):
             aipl_data[ii,k:] = Ipl
     return aipl_data
     
-def fpf(X,E,Xscale):
-
-    theta = X[0]*Xscale[0]
-    gam = X[2]*Xscale[1]
-    #a0 = X(3)*Xscale(3);
-    a0 = Xscale[2]
-    Eg = X[2]*Xscale[3]
-    #Eg = Xscale(4);
-    QFLS = X[3]*Xscale[4]
-    T = X[4]*Xscale[5]
-    #T = Xscale(6);
-    d = Xscale[6]
-
-    ge = np.zeros(E.shape[0])
-
-    for ii in range(E.shape[0]):
-        ge[ii] = 1/(gam*2*scipy.special.gamma(1+1/theta))*scipy.integrate.quad(lambda u: np.exp(-np.absolute(u/gam)**theta)*np.sqrt((E[ii]-Eg)-u),-math.inf,E[ii]-Eg)[0]
-
-    AIPL = 2*pi*E**2/(heV**3*c**2)*((1-np.exp(-a0*d*ge))/(np.exp((E-QFLS)/(keV*T))-1))*(1-2/(np.exp((E-QFLS)/(2*keV*T))+1))
-
-    AIPL = np.log(AIPL)
-    return AIPL
-
 
 def plqy_ext(aipl_data,laser_power):
     DiodeReadings_1sun = laser_power
@@ -241,19 +221,174 @@ def plqy_ext(aipl_data,laser_power):
             LHMax_idx = np.argmin(np.absolute(maxI/2-Ipl[maxI_idx:]))
             LHMax_idx = LHMax_idx+maxI_idx-1
             FWHM[ii-1] = E[HHMax_idx]-E[LHMax_idx]
-            VocSQ300 = VocSQs300_fn(E[maxI_idx])
-            VocSQ350 = VocSQs350_fn(E[maxI_idx])    
-            JphSQ = Jphs_fn(E[maxI_idx])
-            NSuns = Jp532*q/JphSQ;
-            VocMax300 = VocSQ300 + kb*300/q*np.log(Jp532*q/JphSQ)
-            VocMax350 = VocSQ350 + kb*350/q*np.log(Jp532*q/JphSQ)
-            TotalPL = np.mean(-E[1:-1]+E[0:-2])/2*(Ipl[0]+Ipl[-1]+2*np.sum(Ipl[1:-2]))
-            TotalPL_Eg = np.mean(-E[1:maxI_idx]+E[0:maxI_idx-1])/2*(Ipl[0]+Ipl[maxI_idx]+2*np.sum(Ipl[1:maxI_idx-1]))
-            PLQY[ii-1] = TotalPL/Jp532
-            dmu_PLQY[ii-1] = VocMax350-kbeV*350*np.log(1/PLQY[ii-1])
-            chi_PLQY[ii-1] = dmu_PLQY[ii-1]/VocMax300 
-            chi_PLQY_Eg[ii-1] = (VocMax350-kbeV*350*np.log(1/(TotalPL_Eg/Jp532)))/VocMax300
-            PLQY_Eg = TotalPL_Eg/Jp532
-            dmu_PLQY_Eg[ii-1] = VocMax350-kbeV*350*np.log(1/(TotalPL_Eg/Jp532))
-            mean_Ipl[ii-1] = np.sum(Ipl*E)/np.sum(Ipl)
+            try:
+                VocSQ300 = VocSQs300_fn(E[maxI_idx])
+                VocSQ350 = VocSQs350_fn(E[maxI_idx])    
+                JphSQ = Jphs_fn(E[maxI_idx])
+                NSuns = Jp532*q/JphSQ;
+                VocMax300 = VocSQ300 + kb*300/q*np.log(Jp532*q/JphSQ)
+                VocMax350 = VocSQ350 + kb*350/q*np.log(Jp532*q/JphSQ)
+                TotalPL = np.mean(-E[1:-1]+E[0:-2])/2*(Ipl[0]+Ipl[-1]+2*np.sum(Ipl[1:-2]))
+                TotalPL_Eg = np.mean(-E[1:maxI_idx]+E[0:maxI_idx-1])/2*(Ipl[0]+Ipl[maxI_idx]+2*np.sum(Ipl[1:maxI_idx-1]))
+                PLQY[ii-1] = TotalPL/Jp532
+                dmu_PLQY[ii-1] = VocMax350-kbeV*350*np.log(1/PLQY[ii-1])
+                chi_PLQY[ii-1] = dmu_PLQY[ii-1]/VocMax300 
+                chi_PLQY_Eg[ii-1] = (VocMax350-kbeV*350*np.log(1/(TotalPL_Eg/Jp532)))/VocMax300
+                PLQY_Eg = TotalPL_Eg/Jp532
+                dmu_PLQY_Eg[ii-1] = VocMax350-kbeV*350*np.log(1/(TotalPL_Eg/Jp532))
+                mean_Ipl[ii-1] = np.sum(Ipl*E)/np.sum(Ipl)
+            except ValueError:
+                VocSQ300 = 0
+                VocSQ350 = 0
+                JphSQ = 0
+                NSuns = 1     
     return (mean_Ipl,peak_pos,FWHM,PLQY,dmu_PLQY,chi_PLQY,dmu_PLQY_Eg,chi_PLQY_Eg)
+
+def med_idx(aipl_data):
+    '''
+    This function finds the index the AIPL spectrum with median PLQY
+    '''
+    k = 0
+    while np.isnan(aipl_data[0,k]):
+        k = k + 1
+    lam = aipl_data[0,k:]
+    E = heV*c/(lam*1e-9)
+    TotalPL = np.zeros(aipl_data.shape[0]-1)
+    for ii in range(1,aipl_data.shape[0]):
+        Ipl = aipl_data[ii,k:]
+        TotalPL[ii-1] = np.mean(-E[1:-1]+E[0:-2])/2*(Ipl[0]+Ipl[-1]+2*np.sum(Ipl[1:-2]))
+    idx = np.argsort(TotalPL)[len(TotalPL)//2]
+    return (idx+1)
+
+def LSWK(E,theta,gam,Eg,QFLS,T):
+    '''
+    The Lasher-Stern-Wuerfel-Katahara equation
+    '''
+
+    '''
+    theta = X[0]
+    gam = X[1]
+    #a0 = X(3)*Xscale(3);
+    a0 = X[2]
+    Eg = X[3]
+    #Eg = Xscale(4);
+    QFLS = X[4]
+    T = X[5]
+    #T = Xscale(6);
+    d = 375/(1e7)
+    '''
+    a0 = 1e5
+    d = 375/(1e7)
+    ge = np.zeros(E.shape[0])
+
+    for ii in range(E.shape[0]):
+        ge[ii] = 1/(gam*2*scipy.special.gamma(1+1/theta))*quad(lambda u: np.exp(-np.absolute(u/gam)**theta)*np.sqrt((E[ii]-Eg)-u),-math.inf,E[ii]-Eg)[0]
+
+    AIPL = 2*pi*E**2/(heV**3*c**2)*((1-np.exp(-a0*d*ge))/(np.exp((E-QFLS)/(keV*T))-1))*(1-2/(np.exp((E-QFLS)/(2*keV*T))+1))
+
+    AIPL = np.log(AIPL)
+    return AIPL
+
+
+#Load GFuncTable and make interpolation function to speed up full peak fit
+#%%
+g_func_table = np.loadtxt('../../data/PLdata/GFuncTables/GFuncTable.csv',delimiter=',')
+a = np.array([g_func_table[:,0],g_func_table[:,1]])
+g_interp_func = CloughTocher2DInterpolator(np.transpose(np.array([g_func_table[:,0],g_func_table[:,1]])),g_func_table[:,2])
+#%%
+def LSWK_gfunc(E,theta,gam,Eg,QFLS,T):
+    '''
+    The Lasher-Stern-Wuerfel-Katahara equation
+    This uses a Table lookup to calculate G (rather than taking integral)
+    which saves time during peak fit
+    '''
+
+    '''
+    theta = X[0]
+    gam = X[1]
+    #a0 = X(3)*Xscale(3);
+    a0 = X[2]
+    Eg = X[3]
+    #Eg = Xscale(4);
+    QFLS = X[4]
+    T = X[5]
+    #T = Xscale(6);
+    d = 375/(1e7)
+    '''
+    a0 = 1e5
+    d = 375/(1e7)
+    
+    
+    ge = np.sqrt(np.absolute(gam))*g_interp_func(theta, (E-Eg)/gam)
+    
+    AIPL = 2*pi*E**2/(heV**3*c**2)*((1-np.exp(-a0*d*ge))/(np.exp((E-QFLS)/(keV*T))-1))*(1-2/(np.exp((E-QFLS)/(2*keV*T))+1))
+
+    AIPL = np.log(AIPL)
+    return AIPL
+
+def LSWK_2phase_gfunc(E,theta,gam,Eg1,Eg2,x1,QFLS,T):
+    '''
+    The Lasher-Stern-Wuerfel-Katahara equation
+    This uses a Table lookup to calculate G (rather than taking integral)
+    which saves time during peak fit
+    '''
+
+    '''
+    theta = X[0]
+    gam = X[1]
+    #a0 = X(3)*Xscale(3);
+    a0 = X[2]
+    Eg = X[3]
+    #Eg = Xscale(4);
+    QFLS = X[4]
+    T = X[5]
+    #T = Xscale(6);
+    d = 375/(1e7)
+    '''
+    a0 = 1e5
+    d = 375/(1e7)
+    
+    
+    ge1 = np.sqrt(np.absolute(gam))*g_interp_func(theta, (E-Eg1)/gam)
+    ge2 = np.sqrt(np.absolute(gam))*g_interp_func(theta, (E-Eg2)/gam)
+    
+    ge = x1*ge1 + (1-x1)*ge2
+    
+    AIPL = 2*pi*E**2/(heV**3*c**2)*((1-np.exp(-a0*d*ge))/(np.exp((E-QFLS)/(keV*T))-1))*(1-2/(np.exp((E-QFLS)/(2*keV*T))+1))
+
+    AIPL = np.log(AIPL)
+    return AIPL
+
+def full_peak_fit(E,Ipl,X0):
+    '''
+    This is work in progress. Want to add variable number of arguments, and
+    add the following functionality
+    1. Ability to set thresh to determine fit ranges
+    2. Ability to override thresh determined fit ranges 
+    3. Ability to specify which params to fit and keep constant
+    4. Ability to pass unfit params to function (e.g. a0*d)
+    '''
+    
+    thresh = 5e18
+    maxI_idx = np.argmax(Ipl)
+    lb_idx = np.argmin(np.absolute(Ipl[:maxI_idx]-thresh))
+    rb_idx = np.argmin(np.absolute(Ipl[maxI_idx:]-thresh))+maxI_idx
+    
+    #ll_idx = np.argmin(np.absolute(E-1.7))
+    
+    X = np.ones(5);
+    Xscale = X0
+    X[0] = Xscale[0]
+    X[1] = Xscale[1]
+    #X[2] = Xscale[2]
+    X[2] = Xscale[3]
+    X[3] = Xscale[4]
+    X[4] = Xscale[5]
+    
+    
+    (Xf, pcov) = curve_fit(LSWK_gfunc, E[lb_idx:rb_idx], np.log(Ipl[lb_idx:rb_idx]),p0=X)
+   
+
+    #aipl_mod = fpf(E,Xf[0],Xf[1],Xf[2],Xf[3],Xf[4])
+    aipl_mod = np.exp(LSWK(E[lb_idx:rb_idx],Xf[0],Xf[1],Xf[2],Xf[3],Xf[4]))
+    return (E[lb_idx:rb_idx], aipl_mod,Xf[0],Xf[1],Xf[2],Xf[3],Xf[4])
