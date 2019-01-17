@@ -152,6 +152,28 @@ def aipl(data,dark,grating):
     
 
 def plqy_ext(aipl_data,laser_power):
+    '''
+    This is the simple PLQY method for determining quasi-Fermi level splitting
+    from PLQY, using SQ limit as reference. Presently the assumed temperature
+    is 350K for SQ calculation and 300K for chi calculation (this avoids
+    overestimation of QLFS or chi)
+    
+    INPUTS:
+        aipl_data - PL spectrum matrix in absolute units (output from 
+        PLtools.aipl function)
+        laswer_power - laser powermeter reason in SI units (needed for PLQY calc)
+    
+    OUTPUTs:
+        All of the useful PL parameters
+        mean_Ipl - mean PL emission E [eV] (also called 1st moment)
+        peak_pos - PL peak position [eV]
+        FWHM - Full Width Half Max of PL peak [eV]
+        PLQY - Photoluminescence Quantuum Yield [fraction]
+        dmu_PLQY - Quasi-Fermi Level splitting from PLQY method
+        chi_PLQY - QFLS/SQ-max from PLQY method
+        dmu_PLQY_Eg - QFLS, PLQY method, using PL integrated above peak_pos only
+        chi_PLQY_Eg - QFLS / SQ-Max, from PLQY-Eg method
+    '''
     DiodeReadings_1sun = laser_power
     DiodeResponse532= 0.2741
     Area785ImageJ = pi*(6.01e-6)**2
