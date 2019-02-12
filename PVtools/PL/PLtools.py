@@ -188,7 +188,11 @@ def plqy_ext(aipl_data, laser_power, laser, temperature):
     Egs = np.loadtxt('../../data/PLdata/vocmax_data/Egs.txt',delimiter=',')
     VocSQs300 = np.loadtxt('../../data/PLdata/vocmax_data/VocMaxs.txt',delimiter=',') # 300 K
     Jphs = np.loadtxt('../../data/PLdata/vocmax_data/Jphs.txt',delimiter=',') #300 K
+    
+    VocSQs350 = np.loadtxt('../../data/PLdata/vocmax_data/' + temperature + '/VocMaxs2.txt',delimiter=',') # 350 K
+    
     VocSQs350 = np.loadtxt('../../data/PLdata/vocmax_data/VocMaxs2.txt',delimiter=',') # 350 K
+    
     VocSQs300_fn = interp1d(Egs, VocSQs300, kind='cubic')
     VocSQs350_fn = interp1d(Egs, VocSQs350, kind='cubic')
     Jphs_fn = interp1d(Egs, Jphs, kind='cubic')
@@ -198,7 +202,7 @@ def plqy_ext(aipl_data, laser_power, laser, temperature):
     P532 = DiodeReading/(DiodeResponse532*Area785ImageJ*10) #W/m^2
     Jp532 = DiodeReading*0.925/(DiodeResponse532*Area785ImageJ*1.60218e-19*Ep532*2)
 
-    T = 315
+    T = float(temperature[:-1])
     if aipl_data.shape[1] == 2: #single spectrum
         lam = aipl_data[:,0]
         E = heV*c/(lam*1e-9)
