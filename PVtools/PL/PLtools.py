@@ -265,7 +265,6 @@ def plqy_ext(aipl_data, laser_power, laser, temperature):
                 TotalPL = np.max([TotalPL, -TotalPL])
                 TotalPL_Eg = np.mean(-E[1:maxI_idx]+E[0:maxI_idx-1])/2*(Ipl[0]+Ipl[maxI_idx]+2*np.sum(Ipl[1:maxI_idx-1]))
                 TotalPL_Eg = np.max([TotalPL_Eg, -TotalPL_Eg])
-                print(TotalPL)
                 PLQY[ii-1] = TotalPL/Jp532
                 dmu_PLQY[ii-1] = VocMax350-kbeV*T*np.log(1/PLQY[ii-1])
                 chi_PLQY[ii-1] = dmu_PLQY[ii-1]/VocMax300 
