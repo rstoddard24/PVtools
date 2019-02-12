@@ -21,7 +21,7 @@ q = 1.60218e-19
 #%%
 # This module contains functions for Photoluminescence data analysis and modeling
 
-def aipl(data,dark,grating):
+def aipl(data, dark, grating):
     """
     This function takes PL data in cts/second units and
     converts to AIPL based on a laser power and grating calibration
@@ -151,7 +151,7 @@ def aipl(data,dark,grating):
     return aipl_data
     
 
-def plqy_ext(aipl_data,laser_power):
+def plqy_ext(aipl_data, laser_power, laser, temperature):
     '''
     This is the simple PLQY method for determining quasi-Fermi level splitting
     from PLQY, using SQ limit as reference. Presently the assumed temperature
@@ -175,16 +175,20 @@ def plqy_ext(aipl_data,laser_power):
         chi_PLQY_Eg - QFLS / SQ-Max, from PLQY-Eg method
     '''
     DiodeReadings_1sun = laser_power
-    DiodeResponse532= 0.2741
     Area785ImageJ = pi*(6.01e-6)**2
-    Ep532 = 2.3305 #E per photon @532
+    if laser == '532nm':    
+        DiodeResponse532= 0.2741
+        Ep532 = 2.3305 #E per photon @532
+    elif laser == '785nm':
+        DiodeResponse532= 0.4165906265 # for 785
+        Ep532 = 1.59236 #E per photon @785
 
     #Load data from Mathmatica calcs to determine SQ limits @ 300 K and 350 K for various
     #Egs
-    Egs = np.loadtxt('../../data/PLdata/vocmax_data/Egs.txt')
-    VocSQs300 = np.loadtxt('../../data/PLdata/vocmax_data/VocMaxs.txt') # 300 K
-    Jphs = np.loadtxt('../../data/PLdata/vocmax_data/Jphs.txt') #300 K
-    VocSQs350 = np.loadtxt('../../data/PLdata/vocmax_data/VocMaxs2.txt') # 350 K
+    Egs = np.loadtxt('../../data/PLdata/vocmax_data/Egs.txt',delimiter=',')
+    VocSQs300 = np.loadtxt('../../data/PLdata/vocmax_data/VocMaxs.txt',delimiter=',') # 300 K
+    Jphs = np.loadtxt('../../data/PLdata/vocmax_data/Jphs.txt',delimiter=',') #300 K
+    VocSQs350 = np.loadtxt('../../data/PLdata/vocmax_data/VocMaxs2.txt',delimiter=',') # 350 K
     VocSQs300_fn = interp1d(Egs, VocSQs300, kind='cubic')
     VocSQs350_fn = interp1d(Egs, VocSQs350, kind='cubic')
     Jphs_fn = interp1d(Egs, Jphs, kind='cubic')
@@ -194,6 +198,7 @@ def plqy_ext(aipl_data,laser_power):
     P532 = DiodeReading/(DiodeResponse532*Area785ImageJ*10) #W/m^2
     Jp532 = DiodeReading*0.925/(DiodeResponse532*Area785ImageJ*1.60218e-19*Ep532*2)
 
+    T = 315
     if aipl_data.shape[1] == 2: #single spectrum
         lam = aipl_data[:,0]
         E = heV*c/(lam*1e-9)
@@ -210,15 +215,17 @@ def plqy_ext(aipl_data,laser_power):
         JphSQ = Jphs_fn(E[maxI_idx])
         NSuns = Jp532*q/JphSQ;
         VocMax300 = VocSQ300 + kb*300/q*np.log(Jp532*q/JphSQ)
-        VocMax350 = VocSQ350 + kb*350/q*np.log(Jp532*q/JphSQ)
+        VocMax350 = VocSQ350 + kb*T/q*np.log(Jp532*q/JphSQ)
         TotalPL = np.mean(-E[1:-1]+E[0:-2])/2*(Ipl[0]+Ipl[-1]+2*np.sum(Ipl[1:-2]))
+        TotalPL = np.max([TotalPL, -TotalPL])
         TotalPL_Eg = np.mean(-E[1:maxI_idx]+E[0:maxI_idx-1])/2*(Ipl[0]+Ipl[maxI_idx]+2*np.sum(Ipl[1:maxI_idx-1]))
+        TotalPL_Eg = np.max([TotalPL_Eg, -TotalPL_Eg])
         PLQY = TotalPL/Jp532
-        dmu_PLQY = VocMax350-kbeV*350*np.log(1/PLQY)
+        dmu_PLQY = VocMax350-kbeV*T*np.log(1/PLQY)
         chi_PLQY = dmu_PLQY/VocMax300 
-        chi_PLQY_Eg = (VocMax350-kbeV*350*np.log(1/(TotalPL_Eg/Jp532)))/VocMax300
+        chi_PLQY_Eg = (VocMax350-kbeV*T*np.log(1/(TotalPL_Eg/Jp532)))/VocMax300
         PLQY_Eg = TotalPL_Eg/Jp532
-        dmu_PLQY_Eg = VocMax350-kbeV*350*np.log(1/(TotalPL_Eg/Jp532))
+        dmu_PLQY_Eg = VocMax350-kbeV*T*np.log(1/(TotalPL_Eg/Jp532))
         mean_Ipl = np.sum(Ipl*E)/np.sum(Ipl)
     else: #maps
         k = 0
@@ -249,15 +256,18 @@ def plqy_ext(aipl_data,laser_power):
                 JphSQ = Jphs_fn(E[maxI_idx])
                 NSuns = Jp532*q/JphSQ;
                 VocMax300 = VocSQ300 + kb*300/q*np.log(Jp532*q/JphSQ)
-                VocMax350 = VocSQ350 + kb*350/q*np.log(Jp532*q/JphSQ)
+                VocMax350 = VocSQ350 + kb*T/q*np.log(Jp532*q/JphSQ)
                 TotalPL = np.mean(-E[1:-1]+E[0:-2])/2*(Ipl[0]+Ipl[-1]+2*np.sum(Ipl[1:-2]))
+                TotalPL = np.max([TotalPL, -TotalPL])
                 TotalPL_Eg = np.mean(-E[1:maxI_idx]+E[0:maxI_idx-1])/2*(Ipl[0]+Ipl[maxI_idx]+2*np.sum(Ipl[1:maxI_idx-1]))
+                TotalPL_Eg = np.max([TotalPL_Eg, -TotalPL_Eg])
+                print(TotalPL)
                 PLQY[ii-1] = TotalPL/Jp532
-                dmu_PLQY[ii-1] = VocMax350-kbeV*350*np.log(1/PLQY[ii-1])
+                dmu_PLQY[ii-1] = VocMax350-kbeV*T*np.log(1/PLQY[ii-1])
                 chi_PLQY[ii-1] = dmu_PLQY[ii-1]/VocMax300 
-                chi_PLQY_Eg[ii-1] = (VocMax350-kbeV*350*np.log(1/(TotalPL_Eg/Jp532)))/VocMax300
+                chi_PLQY_Eg[ii-1] = (VocMax350-kbeV*T*np.log(1/(TotalPL_Eg/Jp532)))/VocMax300
                 PLQY_Eg = TotalPL_Eg/Jp532
-                dmu_PLQY_Eg[ii-1] = VocMax350-kbeV*350*np.log(1/(TotalPL_Eg/Jp532))
+                dmu_PLQY_Eg[ii-1] = VocMax350-kbeV*T*np.log(1/(TotalPL_Eg/Jp532))
                 mean_Ipl[ii-1] = np.sum(Ipl*E)/np.sum(Ipl)
             except ValueError:
                 VocSQ300 = 0
