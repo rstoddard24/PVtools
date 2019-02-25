@@ -164,7 +164,8 @@ def plqy_ext(aipl_data, laser_power, laser, temperature):
     INPUTS:
         aipl_data - PL spectrum matrix in absolute units (output from 
         PLtools.aipl function)
-        laswer_power - laser powermeter reason in SI units (needed for PLQY calc)
+        laser_power - laser powermeter reason in SI units (needed for PLQY calc)
+        laser - string
     
     OUTPUTs:
         All of the useful PL parameters
@@ -178,13 +179,14 @@ def plqy_ext(aipl_data, laser_power, laser, temperature):
         chi_PLQY_Eg - QFLS / SQ-Max, from PLQY-Eg method
     '''
     DiodeReadings_1sun = laser_power
-    Area785ImageJ = pi*(6.01e-6)**2
     if laser == '532nm':    
         DiodeResponse532= 0.2741
         Ep532 = 2.3305 #E per photon @532
+        Area785ImageJ = pi*(6.01e-6)**2 #m^2
     elif laser == '785nm':
         DiodeResponse532= 0.4165906265 # for 785
         Ep532 = 1.59236 #E per photon @785
+        Area785ImageJ = 1.77e-10 #m^2
 
     #Load data from Mathmatica calcs to determine SQ limits @ 300 K and 350 K for various
     #Egs
