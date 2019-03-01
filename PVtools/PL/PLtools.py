@@ -6,6 +6,9 @@ from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
 from scipy.interpolate import CloughTocher2DInterpolator
 from scipy.integrate import quad
+import sys
+sys.path.append('../')
+import SQ_calcs
 
 # Constants
 pi = math.pi
@@ -161,7 +164,8 @@ def plqy_ext(aipl_data, laser_power, laser, temperature):
     INPUTS:
         aipl_data - PL spectrum matrix in absolute units (output from 
         PLtools.aipl function)
-        laswer_power - laser powermeter reason in SI units (needed for PLQY calc)
+        laser_power - laser powermeter reason in SI units (needed for PLQY calc)
+        laser - string
     
     OUTPUTs:
         All of the useful PL parameters
@@ -175,13 +179,14 @@ def plqy_ext(aipl_data, laser_power, laser, temperature):
         chi_PLQY_Eg - QFLS / SQ-Max, from PLQY-Eg method
     '''
     DiodeReadings_1sun = laser_power
-    Area785ImageJ = pi*(6.01e-6)**2
     if laser == '532nm':    
         DiodeResponse532= 0.2741
         Ep532 = 2.3305 #E per photon @532
+        Area785ImageJ = pi*(6.01e-6)**2 #m^2
     elif laser == '785nm':
         DiodeResponse532= 0.4165906265 # for 785
         Ep532 = 1.59236 #E per photon @785
+        Area785ImageJ = 1.77e-10 #m^2
 
     #Load data from Mathmatica calcs to determine SQ limits @ 300 K and 350 K for various
     #Egs
@@ -214,9 +219,14 @@ def plqy_ext(aipl_data, laser_power, laser, temperature):
         LHMax_idx = np.argmin(np.absolute(maxI/2-Ipl[maxI_idx:]))
         LHMax_idx = LHMax_idx+maxI_idx-1
         FWHM = E[HHMax_idx]-E[LHMax_idx]
-        VocSQ300 = VocSQs300_fn(E[maxI_idx])
-        VocSQ350 = VocSQs350_fn(E[maxI_idx])    
-        JphSQ = Jphs_fn(E[maxI_idx])
+        try:
+            VocSQ300 = VocSQs300_fn(E[maxI_idx])
+            VocSQ350 = VocSQs350_fn(E[maxI_idx])    
+            JphSQ = Jphs_fn(E[maxI_idx])
+        except ValueError:
+            VocSQ300 = SQ_calcs.VocSQ(E[maxI_idx],300)
+            VocSQ350 = SQ_calcs.VocSQ(E[maxI_idx],315)
+            JphSQ = SQ_calcs.JphSQ(E[maxI_idx],300)
         NSuns = Jp532*q/JphSQ;
         VocMax300 = VocSQ300 + kb*300/q*np.log(Jp532*q/JphSQ)
         VocMax350 = VocSQ350 + kb*T/q*np.log(Jp532*q/JphSQ)
@@ -258,25 +268,25 @@ def plqy_ext(aipl_data, laser_power, laser, temperature):
                 VocSQ300 = VocSQs300_fn(E[maxI_idx])
                 VocSQ350 = VocSQs350_fn(E[maxI_idx])    
                 JphSQ = Jphs_fn(E[maxI_idx])
-                NSuns = Jp532*q/JphSQ;
-                VocMax300 = VocSQ300 + kb*300/q*np.log(Jp532*q/JphSQ)
-                VocMax350 = VocSQ350 + kb*T/q*np.log(Jp532*q/JphSQ)
-                TotalPL = np.mean(-E[1:-1]+E[0:-2])/2*(Ipl[0]+Ipl[-1]+2*np.sum(Ipl[1:-2]))
-                TotalPL = np.max([TotalPL, -TotalPL])
-                TotalPL_Eg = np.mean(-E[1:maxI_idx]+E[0:maxI_idx-1])/2*(Ipl[0]+Ipl[maxI_idx]+2*np.sum(Ipl[1:maxI_idx-1]))
-                TotalPL_Eg = np.max([TotalPL_Eg, -TotalPL_Eg])
-                PLQY[ii-1] = TotalPL/Jp532
-                dmu_PLQY[ii-1] = VocMax350-kbeV*T*np.log(1/PLQY[ii-1])
-                chi_PLQY[ii-1] = dmu_PLQY[ii-1]/VocMax300 
-                chi_PLQY_Eg[ii-1] = (VocMax350-kbeV*T*np.log(1/(TotalPL_Eg/Jp532)))/VocMax300
-                PLQY_Eg = TotalPL_Eg/Jp532
-                dmu_PLQY_Eg[ii-1] = VocMax350-kbeV*T*np.log(1/(TotalPL_Eg/Jp532))
-                mean_Ipl[ii-1] = np.sum(Ipl*E)/np.sum(Ipl)
             except ValueError:
-                VocSQ300 = 0
-                VocSQ350 = 0
-                JphSQ = 0
-                NSuns = 1     
+                VocSQ300 = SQ_calcs.VocSQ(E[maxI_idx],300)
+                VocSQ350 = SQ_calcs.VocSQ(E[maxI_idx],315)
+                JphSQ = SQ_calcs.JphSQ(E[maxI_idx],300)
+            NSuns = Jp532*q/JphSQ;
+            VocMax300 = VocSQ300 + kb*300/q*np.log(Jp532*q/JphSQ)
+            VocMax350 = VocSQ350 + kb*T/q*np.log(Jp532*q/JphSQ)
+            TotalPL = np.mean(-E[1:-1]+E[0:-2])/2*(Ipl[0]+Ipl[-1]+2*np.sum(Ipl[1:-2]))
+            TotalPL = np.max([TotalPL, -TotalPL])
+            TotalPL_Eg = np.mean(-E[1:maxI_idx]+E[0:maxI_idx-1])/2*(Ipl[0]+Ipl[maxI_idx]+2*np.sum(Ipl[1:maxI_idx-1]))
+            TotalPL_Eg = np.max([TotalPL_Eg, -TotalPL_Eg])
+            PLQY[ii-1] = TotalPL/Jp532
+            dmu_PLQY[ii-1] = VocMax350-kbeV*T*np.log(1/PLQY[ii-1])
+            chi_PLQY[ii-1] = dmu_PLQY[ii-1]/VocMax300 
+            chi_PLQY_Eg[ii-1] = (VocMax350-kbeV*T*np.log(1/(TotalPL_Eg/Jp532)))/VocMax300
+            PLQY_Eg = TotalPL_Eg/Jp532
+            dmu_PLQY_Eg[ii-1] = VocMax350-kbeV*T*np.log(1/(TotalPL_Eg/Jp532))
+            mean_Ipl[ii-1] = np.sum(Ipl*E)/np.sum(Ipl)
+            
     return (mean_Ipl,peak_pos,FWHM,PLQY,dmu_PLQY,chi_PLQY,dmu_PLQY_Eg,chi_PLQY_Eg)
 
 def med_idx(aipl_data):
