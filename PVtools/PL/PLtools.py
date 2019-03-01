@@ -321,7 +321,7 @@ def LSWK(E,theta,gam,Eg,QFLS,T):
 
     AIPL = 2*pi*E**2/(heV**3*c**2)*((1-np.exp(-a0*d*ge))/(np.exp((E-QFLS)/(keV*T))-1))*(1-2/(np.exp((E-QFLS)/(2*keV*T))+1))
 
-    AIPL = np.log(AIPL)
+    #AIPL = np.log(AIPL)
     return AIPL
 
 
@@ -358,7 +358,7 @@ def LSWK_gfunc(E,theta,gam,Eg,QFLS,T):
     
     AIPL = 2*pi*E**2/(heV**3*c**2)*((1-np.exp(-a0*d*ge))/(np.exp((E-QFLS)/(keV*T))-1))*(1-2/(np.exp((E-QFLS)/(2*keV*T))+1))
 
-    AIPL = np.log(AIPL)
+    #AIPL = np.log(AIPL)
     return AIPL
 
 def LSWK_2phase_gfunc(E,theta,gam,Eg1,Eg2,x1,QFLS,T):
@@ -391,7 +391,7 @@ def LSWK_2phase_gfunc(E,theta,gam,Eg1,Eg2,x1,QFLS,T):
     
     AIPL = 2*pi*E**2/(heV**3*c**2)*((1-np.exp(-a0*d*ge))/(np.exp((E-QFLS)/(keV*T))-1))*(1-2/(np.exp((E-QFLS)/(2*keV*T))+1))
 
-    AIPL = np.log(AIPL)
+    #AIPL = np.log(AIPL)
     return AIPL
 
 def full_peak_fit(E,Ipl,X0):
@@ -404,7 +404,7 @@ def full_peak_fit(E,Ipl,X0):
     4. Ability to pass unfit params to function (e.g. a0*d)
     '''
     
-    thresh = 5e18
+    thresh = 1e16
     maxI_idx = np.argmax(Ipl)
     lb_idx = np.argmin(np.absolute(Ipl[:maxI_idx]-thresh))
     rb_idx = np.argmin(np.absolute(Ipl[maxI_idx:]-thresh))+maxI_idx
@@ -421,9 +421,10 @@ def full_peak_fit(E,Ipl,X0):
     X[4] = Xscale[5]
     
     
-    (Xf, pcov) = curve_fit(LSWK_gfunc, E[lb_idx:rb_idx], np.log(Ipl[lb_idx:rb_idx]),p0=X)
-   
+    (Xf, pcov) = curve_fit(LSWK_gfunc, E[lb_idx:rb_idx], Ipl[lb_idx:rb_idx],p0=X)
+    #(Xf, pcov) = curve_fit(LSWK_gfunc, E[lb_idx:rb_idx], Ipl[lb_idx:rb_idx],p0=X)
 
-    #aipl_mod = fpf(E,Xf[0],Xf[1],Xf[2],Xf[3],Xf[4])
-    aipl_mod = np.exp(LSWK(E[lb_idx:rb_idx],Xf[0],Xf[1],Xf[2],Xf[3],Xf[4]))
+    
+    aipl_mod = LSWK(E[lb_idx:rb_idx],Xf[0],Xf[1],Xf[2],Xf[3],Xf[4])
+    #aipl_mod = LSWK(E[lb_idx:rb_idx],Xf[0],Xf[1],Xf[2],Xf[3],Xf[4])
     return (E[lb_idx:rb_idx], aipl_mod,Xf[0],Xf[1],Xf[2],Xf[3],Xf[4])
